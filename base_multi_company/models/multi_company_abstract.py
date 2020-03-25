@@ -12,7 +12,7 @@ class MultiCompanyAbstract(models.AbstractModel):
     company_id = fields.Many2one(
         string="Company",
         comodel_name="res.company",
-        compute="_compute_company_id",
+        compute="_compute_company_id_and_visibility",
         inverse="_inverse_company_id",
         search="_search_company_id",
     )
@@ -23,34 +23,27 @@ class MultiCompanyAbstract(models.AbstractModel):
         default=lambda self: self._default_company_ids(),
     )
     visible_for_all_companies = fields.Boolean(
-        compute="_compute_visible_for_all_companies",
-        store=True,
-        index=True,
-        default=True,
+        compute="_compute_company_id_and_visibility", store=True, index=True,
     )
 
-    @api.depends("company_ids")
-    @api.multi
-    def _compute_visible_for_all_companies(self):
-        for rec in self:
-            if not rec.company_ids:
-                rec.visible_for_all_companies = True
-
     def _default_company_ids(self):
-        return self.browse(self.env["res.company"]._company_default_get(self._name).ids)
+        return self.browse(self.env.company.ids)
 
     @api.depends("company_ids")
-    def _compute_company_id(self):
-        user_company = self.env.user.company_id
+    def _compute_company_id_and_visibility(self):
+        current_company = self.env.company
         for record in self:
-            # Give the priority of the current company of the user to avoid
-            # access right error
-            if user_company.id in record.company_ids.ids:
-                record.company_id = user_company.id
+            # Give the priority of the current company  to avoid access right
+            # error
+            if current_company.id in record.company_ids.ids:
+                record.company_id = current_company.id
             else:
                 record.company_id = record.company_ids[:1].id
+            if not record.company_ids:
+                record.visible_for_all_companies = True
+            else:
+                record.visible_for_all_companies = False
 
-    @api.multi
     def _inverse_company_id(self):
         for record in self:
             # Checking id not falsy due to bad data that can put '' in id
@@ -62,6 +55,5 @@ class MultiCompanyAbstract(models.AbstractModel):
                 # companies are allowed) as it's the equivalent
                 record.company_ids = [(5,)]
 
-    @api.model
     def _search_company_id(self, operator, value):
         return [("company_ids", operator, value)]
