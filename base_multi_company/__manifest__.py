@@ -11,7 +11,6 @@
     "license": "LGPL-3",
     "installable": True,
     "application": False,
-    "pre_init_hook": "create_company_assignment_view",
     "data": ["security/ir.model.access.csv"],
     "development_status": "Production/Stable",
     "maintainers": ["pedrobaeza"],
